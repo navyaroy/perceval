@@ -21,6 +21,7 @@
 #
 
 import json
+import csv
 import logging
 import os
 import re
@@ -233,6 +234,7 @@ class GitCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.branches = self.parsed_args.branches
+        self.isCsv = self.parsed_args.csv_format
 
         if self.parsed_args.git_log:
             git_path = self.parsed_args.git_log
@@ -247,16 +249,54 @@ class GitCommand(BackendCommand):
         self.backend = Git(self.uri, git_path,
                            tag=self.tag, cache=cache)
 
-    def run(self):
-        """Fetch and print the commits.
 
-        This method runs the backend to fetch the commits from the given
-        git log. Commits are converted to JSON objects and printed to the
-        defined output.
-        """
-        commits = self.backend.fetch(from_date=self.from_date,
-                                    branches=self.branches)
+    def CVSformatOutput(self, commits):
+        try:
+            fileCVS = csv.writer( open( self.outfile.name, "w+" ))
+            fileCVS.writerow(["Backend_name", "Backend_version",
+                "Category", "Author", "AuthorDate", "Action",
+                "Added", "File", "Message", "Parents",
+                "Refs", "Origin", "Perceval_version", "Tag",
+                "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+                index = 0
 
+                while index < len(obj["data"]["files"]):
+                    try:
+                        action = obj["data"]["files"][index]["action"]
+                    except Exception:
+                        action = "-"
+                    try:
+                        added = obj["data"]["files"][index]["added"]
+                    except Exception:
+                        added = "-"
+                    fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["Author"],
+                                  obj["data"]["AuthorDate"],
+                                  action,
+                                  added,
+                                  obj["data"]["files"][index]["file"],
+                                  obj["data"]["message"],
+                                  obj["data"]["parents"],
+                                  obj["data"]["refs"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+                    index = index + 1
+        except OSError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
         try:
             for commit in commits:
                 obj = json.dumps(commit, indent=4, sort_keys=True)
@@ -266,6 +306,16 @@ class GitCommand(BackendCommand):
             raise RuntimeError(str(e))
         except Exception as e:
             raise RuntimeError(str(e))
+
+
+    def run(self):
+        commits = self.backend.fetch(from_date=self.from_date,
+                                    branches=self.branches)
+        if self.isCsv:
+            self.CVSformatOutput( commits)
+        else:
+            self.JSONformatOutput()
+
 
     @classmethod
     def create_argument_parser(cls):

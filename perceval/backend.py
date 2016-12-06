@@ -169,6 +169,9 @@ class BackendCommand:
         group.add_argument('-o', '--output', type=argparse.FileType('w'),
                            dest='outfile', default=sys.stdout,
                            help="output file")
+        group.add_argument('--csv', dest='csv_format',
+                           action='store_true',
+                           help="output in csv format")
 
         return parser
 
