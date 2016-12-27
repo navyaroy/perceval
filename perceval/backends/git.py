@@ -22,6 +22,7 @@
 
 import json
 import csv
+import sys
 import logging
 import os
 import re
@@ -252,18 +253,27 @@ class GitCommand(BackendCommand):
 
     def CVSformatOutput(self, commits):
         try:
-            fileCVS = csv.writer( open( self.outfile.name, "w+" ))
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
             fileCVS.writerow(["Backend_name", "Backend_version",
-                "Category", "Author", "AuthorDate", "Action",
+                "Category", "Author", "AuthorDate", "pos/num", "Action",
                 "Added", "File", "Message", "Parents",
                 "Refs", "Origin", "Perceval_version", "Tag",
                 "Timestamp", "Updated_on", "Uuid"])
             for commit in commits:
                 string = json.dumps(commit, indent=4, sort_keys=True)
                 obj = json.loads(string)
+
                 index = 0
+                total = len(obj["data"]["files"])
+                str_total = str(total)
 
                 while index < len(obj["data"]["files"]):
+                    str_index = str(index + 1)
+                    relation = str_index + "/" + str_total
+
                     try:
                         action = obj["data"]["files"][index]["action"]
                     except Exception:
@@ -277,6 +287,7 @@ class GitCommand(BackendCommand):
                                   obj["category"],
                                   obj["data"]["Author"],
                                   obj["data"]["AuthorDate"],
+                                  relation,
                                   action,
                                   added,
                                   obj["data"]["files"][index]["file"],
@@ -312,9 +323,9 @@ class GitCommand(BackendCommand):
         commits = self.backend.fetch(from_date=self.from_date,
                                     branches=self.branches)
         if self.isCsv:
-            self.CVSformatOutput( commits)
+            self.CVSformatOutput( commits )
         else:
-            self.JSONformatOutput()
+            self.JSONformatOutput( commits )
 
 
     @classmethod
