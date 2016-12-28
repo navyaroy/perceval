@@ -23,6 +23,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -395,6 +397,7 @@ class DiscourseCommand(BackendCommand):
         self.outfile = self.parsed_args.outfile
         self.tag = self.parsed_args.tag
         self.from_date = str_to_datetime(self.parsed_args.from_date)
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -416,6 +419,133 @@ class DiscourseCommand(BackendCommand):
         self.backend = Discourse(self.url, self.backend_token,
                                  tag=self.tag, cache=cache)
 
+    def CVSformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Archetype", "Archived", "bookmarked", "category_id",
+                              "Chunk_size", "Closed", "Created_at", "Deleted_at",
+                              "Deleted_by", "Archetyype_ST", "Archived_ST", "Bookmarket_ST",
+                              "Bumped_ST", "Bumped_at_ST", "Category_id_ST", "Closed_ST",
+                              "Created_at_ST", "Fancy_title_ST", "featured_link_ST",
+                              "Highest_post_number_ST", "id_ST", "Image_URL_ST",
+                              "last_posted_at_ST", "like_count_ST", "liked_ST",
+                              "pinned_ST", "Posts_count_ST", "Replay_count_ST",
+                              "Slug_ST", "Title_ST", "Unpinned_ST", "Unseen_ST",
+                              "Views_ST", "Visible_ST", "Draft", "Draft_key",
+                              "Draft_sequence", "Fancy_title", "Featured_link",
+                              "Has_summary", "Highest_post_number", "ID",
+                              "Last_posted_at", "Like_count", "Participant_count",
+                              "Title", "Unpinned", "User_id", "Views", "Visible",
+                              "Word_count",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                index = 0
+                total = len(obj["data"]["details"]["suggested_topics"])
+                str_total = str(total)
+
+                while index < len(obj["data"]["details"]["suggested_topics"]):
+                    str_index = str(index + 1)
+                    relation = str_index + "/" + str_total
+
+                    #try:
+                    #    action = obj["data"]["files"][index]["action"]
+                    #except Exception:
+                    #    action = "-"
+
+                    fileCVS.writerow([obj["backend_name"],
+                                      obj["backend_version"],
+                                      obj["category"],
+                                      obj["data"]["archetype"],
+                                      obj["data"]["archived"],
+                                      obj["data"]["bookmarked"],
+                                      obj["data"]["category_id"],
+                                      obj["data"]["chunk_size"],
+                                      obj["data"]["closed"],
+                                      obj["data"]["created_at"],
+                                      obj["data"]["deleted_at"],
+                                      obj["data"]["deleted_by"],
+                                      relation,
+                                      obj["data"]["details"]["suggested_topics"][index]["archetype"],
+                                      obj["data"]["details"]["suggested_topics"][index]["archived"],
+                                      obj["data"]["details"]["suggested_topics"][index]["bookmarked"],
+                                      obj["data"]["details"]["suggested_topics"][index]["bumped"],
+                                      obj["data"]["details"]["suggested_topics"][index]["bumped_at"],
+                                      obj["data"]["details"]["suggested_topics"][index]["category_id"],
+                                      obj["data"]["details"]["suggested_topics"][index]["closed"],
+                                      obj["data"]["details"]["suggested_topics"][index]["created_at"],
+                                      obj["data"]["details"]["suggested_topics"][index]["fancy_title"],
+                                      obj["data"]["details"]["suggested_topics"][index]["featured_link"],
+                                      obj["data"]["details"]["suggested_topics"][index]["highest_post_number"],
+                                      obj["data"]["details"]["suggested_topics"][index]["id"],
+                                      obj["data"]["details"]["suggested_topics"][index]["image_url"],
+                                      obj["data"]["details"]["suggested_topics"][index]["last_posted_at"],
+                                      obj["data"]["details"]["suggested_topics"][index]["like_count"],
+                                      obj["data"]["details"]["suggested_topics"][index]["liked"],
+                                      obj["data"]["details"]["suggested_topics"][index]["pinned"],
+                                      obj["data"]["details"]["suggested_topics"][index]["posts_count"],
+                                      obj["data"]["details"]["suggested_topics"][index]["reply_count"],
+                                      obj["data"]["details"]["suggested_topics"][index]["slug"],
+                                      obj["data"]["details"]["suggested_topics"][index]["title"],
+                                      obj["data"]["details"]["suggested_topics"][index]["unpinned"],
+                                      obj["data"]["details"]["suggested_topics"][index]["unseen"],
+                                      obj["data"]["details"]["suggested_topics"][index]["views"],
+                                      obj["data"]["details"]["suggested_topics"][index]["visible"],
+                                      obj["data"]["draft"],
+                                      obj["data"]["draft_key"],
+                                      obj["data"]["draft_sequence"],
+                                      obj["data"]["fancy_title"],
+                                      obj["data"]["featured_link"],
+                                      obj["data"]["has_summary"],
+                                      obj["data"]["highest_post_number"],
+                                      obj["data"]["id"],
+                                      obj["data"]["last_posted_at"],
+                                      obj["data"]["like_count"],
+                                      obj["data"]["participant_count"],
+                                      obj["data"]["title"],
+                                      obj["data"]["unpinned"],
+                                      obj["data"]["user_id"],
+                                      obj["data"]["views"],
+                                      obj["data"]["visible"],
+                                      obj["data"]["word_count"],
+                                      obj["origin"],
+                                      obj["perceval_version"],
+                                      obj["tag"],
+                                      obj["timestamp"],
+                                      obj["updated_on"],
+                                      obj["uuid"]])
+                    index = index + 1
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
     def run(self):
         """Fetch and print the posts.
 
@@ -428,19 +558,10 @@ class DiscourseCommand(BackendCommand):
         else:
             topics = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for topic in topics:
-                obj = json.dumps(topic, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CVSformatOutput( topics )
+        else:
+            self.JSONformatOutput( topics )
 
     @classmethod
     def create_argument_parser(cls):
