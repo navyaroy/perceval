@@ -23,6 +23,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 import time
@@ -405,6 +407,7 @@ class GitHubCommand(BackendCommand):
         self.outfile = self.parsed_args.outfile
         self.sleep_for_rate = self.parsed_args.sleep_for_rate
         self.min_rate_to_sleep = self.parsed_args.min_rate_to_sleep
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -430,6 +433,152 @@ class GitHubCommand(BackendCommand):
                               sleep_for_rate=self.sleep_for_rate,
                               min_rate_to_sleep=self.min_rate_to_sleep)
 
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "body", "closed_at", "comments",
+                              "comments_url", "created_at", "events_url",
+                              "html_url", "id", "labels_url",
+                              "locked", "milestone", "number",
+                              "diff_url_PR", "html_url_PR", "patch_url_PR",
+                              "url_PR", "repository_url", "state", "title",
+                              "updated_at", "url", "avatar_url_user",
+                              "events_url_user", "followers_url_user",
+                              "following_url_user", "gists_url_user",
+                              "gravatar_id_user", "html_url_user",
+                              "id_user", "login_user", "organizations_url_user",
+                              "received_events_url_user", "repos_url_user",
+                              "site_admin_user", "starred_url_user",
+                              "subscriptions_url_user", "type_user",
+                              "url_user", "avatar_url_user_data",
+                              "bio_user_data", "blog_user_data",
+                              "company_user_data", "created_at_user_data",
+                              "email_user_data", "events_url_user_data",
+                              "followers_user_data", "followers_url_user_data",
+                              "following_user_data", "following_url_user_data",
+                              "gists_url_user_data", "gravatar_id_user_data",
+                              "hireable_user_data", "html_url_user_data",
+                              "id_user_data", "location_user_data",
+                              "login_user_data", "name_user_data",
+                              "organizations_user_data", "organizations_url_user_data",
+                              "public_gists_user_data", "public_repos_user_data",
+                              "received_events_url_user_data", "repos_url_user_data",
+                              "site_admin_user_data", "starred_url_user_data",
+                              "subscriptions_url_user_data", "type_user_data",
+                              "data""user_data""updated_at_user_data","url_user_data",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["body"],
+                                  obj["data"]["closed_at"],
+                                  obj["data"]["comments"],
+                                  obj["data"]["comments_url"],
+                                  obj["data"]["created_at"],
+                                  obj["data"]["events_url"],
+                                  obj["data"]["html_url"],
+                                  obj["data"]["id"],
+                                  obj["data"]["labels_url"],
+                                  obj["data"]["locked"],
+                                  obj["data"]["milestone"],
+                                  obj["data"]["number"],
+                                  obj["data"]["pull_request"]["diff_url"],
+                                  obj["data"]["pull_request"]["html_url"],
+                                  obj["data"]["pull_request"]["patch_url"],
+                                  obj["data"]["pull_request"]["url"],
+                                  obj["data"]["repository_url"],
+                                  obj["data"]["state"],
+                                  obj["data"]["title"],
+                                  obj["data"]["updated_at"],
+                                  obj["data"]["url"],
+                                  obj["data"]["user"]["avatar_url"],
+                                  obj["data"]["user"]["events_url"],
+                                  obj["data"]["user"]["followers_url"],
+                                  obj["data"]["user"]["following_url"],
+                                  obj["data"]["user"]["gists_url"],
+                                  obj["data"]["user"]["gravatar_id"],
+                                  obj["data"]["user"]["html_url"],
+                                  obj["data"]["user"]["id"],
+                                  obj["data"]["user"]["login"],
+                                  obj["data"]["user"]["organizations_url"],
+                                  obj["data"]["user"]["received_events_url"],
+                                  obj["data"]["user"]["repos_url"],
+                                  obj["data"]["user"]["site_admin"],
+                                  obj["data"]["user"]["starred_url"],
+                                  obj["data"]["user"]["subscriptions_url"],
+                                  obj["data"]["user"]["type"],
+                                  obj["data"]["user"]["url"],
+                                  obj["data"]["user_data"]["avatar_url"],
+                                  obj["data"]["user_data"]["bio"],
+                                  obj["data"]["user_data"]["blog"],
+                                  obj["data"]["user_data"]["company"],
+                                  obj["data"]["user_data"]["created_at"],
+                                  obj["data"]["user_data"]["email"],
+                                  obj["data"]["user_data"]["events_url"],
+                                  obj["data"]["user_data"]["followers"],
+                                  obj["data"]["user_data"]["followers_url"],
+                                  obj["data"]["user_data"]["following"],
+                                  obj["data"]["user_data"]["following_url"],
+                                  obj["data"]["user_data"]["gists_url"],
+                                  obj["data"]["user_data"]["gravatar_id"],
+                                  obj["data"]["user_data"]["hireable"],
+                                  obj["data"]["user_data"]["html_url"],
+                                  obj["data"]["user_data"]["id"],
+                                  obj["data"]["user_data"]["location"],
+                                  obj["data"]["user_data"]["login"],
+                                  obj["data"]["user_data"]["name"],
+                                  obj["data"]["user_data"]["organizations"],
+                                  obj["data"]["user_data"]["organizations_url"],
+                                  obj["data"]["user_data"]["public_gists"],
+                                  obj["data"]["user_data"]["public_repos"],
+                                  obj["data"]["user_data"]["received_events_url"],
+                                  obj["data"]["user_data"]["repos_url"],
+                                  obj["data"]["user_data"]["site_admin"],
+                                  obj["data"]["user_data"]["starred_url"],
+                                  obj["data"]["user_data"]["subscriptions_url"],
+                                  obj["data"]["user_data"]["type"],
+                                  obj["data"]["user_data"]["updated_at"],
+                                  obj["data"]["user_data"]["url"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except OSError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                # self.outfile.write(issue['url']+"\n")
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
     def run(self):
         """Fetch and print the issues.
 
@@ -442,20 +591,10 @@ class GitHubCommand(BackendCommand):
         else:
             issues = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for issue in issues:
-                obj = json.dumps(issue, indent=4, sort_keys=True)
-                # self.outfile.write(issue['url']+"\n")
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( issues )
+        else:
+            self.JSONformatOutput( issues )
 
     @classmethod
     def create_argument_parser(cls):
