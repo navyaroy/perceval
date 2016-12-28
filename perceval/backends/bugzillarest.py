@@ -22,6 +22,7 @@
 #
 
 import json
+import csv
 import logging
 import os.path
 
@@ -469,6 +470,7 @@ class BugzillaRESTCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -495,6 +497,69 @@ class BugzillaRESTCommand(BackendCommand):
                                     tag=self.tag,
                                     cache=cache)
 
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Alias", "Assigned_to", "Email_assigned_to",
+                              "ID_assigned_to", "Name_assigned_to", "RealName_assigned_to",
+                              "Email_creator", "ID_creator", "Name_creator", "RealName_creator",
+                              "ID", "Last_change_time", "Severity", "Status",
+                               "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["alias"],
+                                  obj["data"]["assigned_to"],
+                                  obj["data"]["assigned_to_detail"]["email"],
+                                  obj["data"]["assigned_to_detail"]["id"],
+                                  obj["data"]["assigned_to_detail"]["name"],
+                                  obj["data"]["assigned_to_detail"]["real_name"],
+                                  obj["data"]["creator_detail"]["email"],
+                                  obj["data"]["creator_detail"]["id"],
+                                  obj["data"]["creator_detail"]["name"],
+                                  obj["data"]["creator_detail"]["real_name"],
+                                  obj["data"]["id"],
+                                  obj["data"]["last_change_time"],
+                                  obj["data"]["severity"],
+                                  obj["data"]["status"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except OSError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the bugs.
 
@@ -507,17 +572,11 @@ class BugzillaRESTCommand(BackendCommand):
         else:
             bugs = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for bug in bugs:
-                obj = json.dumps(bug, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( bugs )
+        else:
+            self.JSONformatOutput( bugs )
+
 
     @classmethod
     def create_argument_parser(cls):

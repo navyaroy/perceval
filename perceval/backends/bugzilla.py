@@ -453,6 +453,8 @@ class BugzillaCommand(BackendCommand):
         except OSError as e:
             raise RuntimeError(str(e))
         except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
             raise RuntimeError(str(e))
 
     def JSONformatOutput(self, commits):

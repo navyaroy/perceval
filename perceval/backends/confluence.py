@@ -22,6 +22,9 @@
 
 import logging
 import json
+import csv
+import sys
+
 import os.path
 
 import requests
@@ -275,6 +278,7 @@ class ConfluenceCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -297,6 +301,112 @@ class ConfluenceCommand(BackendCommand):
                                   tag=self.tag,
                                   cache=cache)
 
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Ancestors_expandable", "Childern_expandable",
+                              "Container_expandable", "Descendants_expandable", "Operations_expandable",
+                              "Space_expandable", "Base_links", "Collection_links", "Context_links",
+                              "Self_links", "Webui_links",
+                              "LastUpdated_history", "NextVersion_history", "PreviousVersion_history",
+                              "Self_history", "DisplayName_createdBy", "Height_ProfilePicture_CreatedBy",
+                              "isDefault_ProfilePicture_CreatedBy", "Path_ProfilePicture_CreatedBy",
+                              "Width_ProfilePicture_CreatedBy", "Type_CreatedBy", "UserKey_CreatedBy",
+                              "UserName_CreatedBy", "CreatedDate_history", "Latest_history", "Id",
+                              "Status", "Title", "Type",
+                              "DisplayName_Version", "Height_ProfilePicture_Version",
+                              "isDefault_ProfilePicture_Version",
+                              "Path_ProfilePicture_Version",
+                              "Width_ProfilePicture_Version", "Type_Version", "UserKey_Version",
+                              "UserName_Version",
+                              "Message_version", "MinorEdit_version", "number_version", "when_version",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                try:
+                    message_version = obj["data"]["version"]["message"]
+                except Exception:
+                    message_version = "-"
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["_expandable"]["ancestors"],
+                                  obj["data"]["_expandable"]["children"],
+                                  obj["data"]["_expandable"]["container"],
+                                  obj["data"]["_expandable"]["descendants"],
+                                  obj["data"]["_expandable"]["operations"],
+                                  obj["data"]["_expandable"]["space"],
+                                  obj["data"]["_links"]["base"],
+                                  obj["data"]["_links"]["collection"],
+                                  obj["data"]["_links"]["context"],
+                                  obj["data"]["_links"]["self"],
+                                  obj["data"]["_links"]["webui"],
+                                  obj["data"]["history"]["_expandable"]["lastUpdated"],
+                                  obj["data"]["history"]["_expandable"]["nextVersion"],
+                                  obj["data"]["history"]["_expandable"]["previousVersion"],
+                                  obj["data"]["history"]["_links"]["self"],
+                                  obj["data"]["history"]["createdBy"]["displayName"],
+                                  obj["data"]["history"]["createdBy"]["profilePicture"]["height"],
+                                  obj["data"]["history"]["createdBy"]["profilePicture"]["isDefault"],
+                                  obj["data"]["history"]["createdBy"]["profilePicture"]["path"],
+                                  obj["data"]["history"]["createdBy"]["profilePicture"]["width"],
+                                  obj["data"]["history"]["createdBy"]["type"],
+                                  obj["data"]["history"]["createdBy"]["userKey"],
+                                  obj["data"]["history"]["createdBy"]["username"],
+                                  obj["data"]["history"]["createdDate"],
+                                  obj["data"]["history"]["latest"],
+                                  obj["data"]["id"],
+                                  obj["data"]["status"],
+                                  obj["data"]["title"],
+                                  obj["data"]["type"],
+                                  obj["data"]["version"]["by"]["displayName"],
+                                  obj["data"]["version"]["by"]["profilePicture"]["height"],
+                                  obj["data"]["version"]["by"]["profilePicture"]["isDefault"],
+                                  obj["data"]["version"]["by"]["profilePicture"]["path"],
+                                  obj["data"]["version"]["by"]["profilePicture"]["width"],
+                                  obj["data"]["version"]["by"]["type"],
+                                  obj["data"]["version"]["by"]["userKey"],
+                                  obj["data"]["version"]["by"]["username"],
+                                  message_version,
+                                  obj["data"]["version"]["minorEdit"],
+                                  obj["data"]["version"]["number"],
+                                  obj["data"]["version"]["when"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except OSError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the contents.
 
@@ -309,17 +419,10 @@ class ConfluenceCommand(BackendCommand):
         else:
             hcs = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for hc in hcs:
-                obj = json.dumps(hc, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( hcs )
+        else:
+            self.JSONformatOutput( hcs )
 
     @classmethod
     def create_argument_parser(cls):
