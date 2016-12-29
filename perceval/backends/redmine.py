@@ -21,6 +21,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -364,6 +366,7 @@ class RedmineCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -388,6 +391,179 @@ class RedmineCommand(BackendCommand):
                                tag=self.tag,
                                cache=cache)
 
+    def setValue(self, string):
+        try:
+            value = string
+        except Exception:
+            value = "-"
+        return value
+
+
+    def CVSformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                "Author_id", "Author_name", "Created_on_AD", "ID_CF_AD", "Name_CF_AD",
+                "Value_CF_AD", "FirstName_AD", "ID_AD", "Last_login_on_AD",
+                "Lastname_AD", "Changesets", "Closed_on", "Created_on", "Done_ratio",
+                "ID_journal", "num/pos", "Created_on_journal", "ID_journal",
+                "Notes_journal", "ID_user_journal", "Name_user_journal",
+                "Created_on_UD_journal", "ID_UD_journal", "Name_UD_journal", "Value_UD_journal",
+                "FirstName_UD_journal", "ID_UD_journal", "Last_login_on_UD_journal",
+                "Lastname_UD_journal", "Subject", "ID_tracker", "Name_tracker",
+                "Updated_on", "Origin", "Perceval_version", "Tag",
+                "Timestamp", "Updated_on", "Uuid"])
+
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                index = 0
+                total = len(obj["data"]["journals"])
+                str_total = str(total)
+
+                while index < total:
+                    str_index = str(index + 1)
+                    relation = str_index + "/" + str_total
+
+                    try:
+                        closedOn = obj["data"]["closed_on"]
+                    except Exception:
+                        closedOn = "-"
+                    try:
+                        id_cf = obj["data"]["author_data"]["custom_fields"][0]["id"]
+                        name_cf = obj["data"]["author_data"]["custom_fields"][0]["name"]
+                        value_cf = obj["data"]["author_data"]["custom_fields"][0]["value"]
+                    except Exception:
+                        id_cf = "-"
+                        name_cf = "-"
+                        value_cf = "-"
+                    try:
+                        createdOn = obj["data"]["created_on"]
+                    except Exception:
+                        createdOn = "-"
+                    try:
+                        notes = obj["data"]["journals"][index]["notes"],
+                    except Exception:
+                        notes = "-"
+                    try:
+                        createdOnJournal = obj["data"]["journals"][index]["user_data"]["created_on"]
+                    except Exception:
+                        createdOnJournal = "-"
+                    try:
+                        id_us = obj["data"]["journals"][index]["user_data"]["custom_fields"][0]["id"]
+                        name_us = obj["data"]["journals"][index]["user_data"]["custom_fields"][0]["name"]
+                        value_us = obj["data"]["journals"][index]["user_data"]["custom_fields"][0]["value"]
+                    except Exception:
+                        id_us = "-"
+                        name_us = "-"
+                        value_us = "-"
+                    try:
+                        firstname_ud = obj["data"]["journals"][index]["user_data"]["firstname"]
+                    except Exception:
+                        firstname_ud = "-"
+                    try:
+                        id_ud = obj["data"]["journals"][index]["user_data"]["id"]
+                    except Exception:
+                        id_ud = "-"
+                    try:
+                        last_login_on = obj["data"]["journals"][index]["user_data"]["last_login_on"]
+                    except Exception:
+                        last_login_on = "-"
+                    try:
+                        lastname_ud = obj["data"]["journals"][index]["user_data"]["lastname"]
+                    except Exception:
+                        lastname_ud = "-"
+                    try:
+                        createdOn_ad = obj["data"]["author_data"]["created_on"]
+                    except Exception:
+                        createdOn_ad = "-"
+                    try:
+                        firstname_ad = obj["data"]["author_data"]["firstname"]
+                    except Exception:
+                        firstname_ad = "-"
+                    try:
+                        id_ad = obj["data"]["author_data"]["id"]
+                    except Exception:
+                        id_ad = "-"
+                    try:
+                        lastloginon = obj["data"]["author_data"]["last_login_on"]
+                    except Exception:
+                        lastloginon = "-"
+                    try:
+                        lastname_ad = obj["data"]["author_data"]["lastname"]
+                    except Exception:
+                        lastname_ad = "-"
+
+                    fileCVS.writerow([obj["backend_name"],
+                                      obj["backend_version"],
+                                      obj["category"],
+                                      obj["data"]["author"]["id"],
+                                      obj["data"]["author"]["name"],
+                                      createdOn_ad,
+                                      id_cf,
+                                      name_cf,
+                                      value_cf,
+                                      firstname_ad,
+                                      id_ad,
+                                      lastloginon,
+                                      lastname_ad,
+                                      obj["data"]["changesets"],
+                                      closedOn,
+                                      createdOn,
+                                      obj["data"]["done_ratio"],
+                                      obj["data"]["id"],
+                                      relation,
+                                      obj["data"]["journals"][index]["created_on"],
+                                      obj["data"]["journals"][index]["id"],
+                                      notes,
+                                      obj["data"]["journals"][index]["user"]["id"],
+                                      obj["data"]["journals"][index]["user"]["name"],
+                                      createdOnJournal,
+                                      id_us,
+                                      name_us,
+                                      value_us,
+                                      firstname_ud,
+                                      id_ud,
+                                      last_login_on,
+                                      lastname_ud,
+                                      obj["data"]["subject"],
+                                      obj["data"]["tracker"]["id"],
+                                      obj["data"]["tracker"]["name"],
+                                      obj["data"]["updated_on"],
+                                      obj["origin"],
+                                      obj["perceval_version"],
+                                      obj["tag"],
+                                      obj["timestamp"],
+                                      obj["updated_on"],
+                                      obj["uuid"]])
+                    index = index + 1
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the issues.
 
@@ -400,17 +576,12 @@ class RedmineCommand(BackendCommand):
         else:
             issues = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for issue in issues:
-                obj = json.dumps(issue, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CVSformatOutput( issues )
+        else:
+            self.JSONformatOutput( issues )
+
+
 
     @classmethod
     def create_argument_parser(cls):
