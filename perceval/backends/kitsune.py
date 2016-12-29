@@ -22,6 +22,8 @@
 
 import functools
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -368,6 +370,7 @@ class KitsuneCommand(BackendCommand):
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
         self.offset = self.parsed_args.offset
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -388,6 +391,90 @@ class KitsuneCommand(BackendCommand):
 
         self.backend = Kitsune(self.url, tag=self.tag, cache=cache)
 
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Content", "Created", "Avatar_creator", "DisplayName_creator",
+                              "Username_creator", "ID", "Avatar_involved", "DisplayName_involved",
+                              "Username_involve", "Is_arvhived", "Is_locked", "Is_solved",
+                              "Is_spam", "Is_taken", "last_answer", "Locale", "Num_answers",
+                              "Num_votes", "Num_votes_past_week", "Product", "Solution",
+                              "Solved_by", "Taken_by", "Taken_until", "Title", "Topic",
+                              "Updated", "Updated_by", "Offset",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["content"],
+                                  obj["data"]["created"],
+                                  obj["data"]["creator"]["avatar"],
+                                  obj["data"]["creator"]["display_name"],
+                                  obj["data"]["creator"]["username"],
+                                  obj["data"]["id"],
+                                  obj["data"]["involved"][0]["avatar"],
+                                  obj["data"]["involved"][0]["display_name"],
+                                  obj["data"]["involved"][0]["username"],
+                                  obj["data"]["is_archived"],
+                                  obj["data"]["is_locked"],
+                                  obj["data"]["is_solved"],
+                                  obj["data"]["is_spam"],
+                                  obj["data"]["is_taken"],
+                                  obj["data"]["last_answer"],
+                                  obj["data"]["locale"],
+                                  obj["data"]["num_answers"],
+                                  obj["data"]["num_votes"],
+                                  obj["data"]["num_votes_past_week"],
+                                  obj["data"]["product"],
+                                  obj["data"]["solution"],
+                                  obj["data"]["solved_by"],
+                                  obj["data"]["taken_by"],
+                                  obj["data"]["taken_until"],
+                                  obj["data"]["title"],
+                                  obj["data"]["topic"],
+                                  obj["data"]["updated"],
+                                  obj["data"]["updated_by"],
+                                  obj["offset"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the Events.
 
@@ -400,19 +487,11 @@ class KitsuneCommand(BackendCommand):
         else:
             questions = self.backend.fetch(offset=self.offset)
 
-        try:
-            for question in questions:
-                obj = json.dumps(question, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( questions )
+        else:
+            self.JSONformatOutput( questions )
+
 
     @classmethod
     def create_argument_parser(cls):
