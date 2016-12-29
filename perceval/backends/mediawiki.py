@@ -22,6 +22,8 @@
 
 import datetime
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -531,6 +533,7 @@ class MediaWikiCommand(BackendCommand):
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
         self.reviews_api = self.parsed_args.reviews_api
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -551,19 +554,68 @@ class MediaWikiCommand(BackendCommand):
 
         self.backend = MediaWiki(self.url, tag=self.tag, cache=cache)
 
-    def run(self):
-        """Fetch and print the pages and their revisions.
 
-        This method runs the backend to fetch the wiki pages and revisions of a
-        given url. Builds are converted to JSON objects and printed to the
-        defined output.
-        """
-        if self.parsed_args.fetch_cache:
-            pages = self.backend.fetch_from_cache()
-        else:
-            pages = self.backend.fetch(from_date=self.from_date,
-                                       reviews_api=self.reviews_api)
+    def CVSformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                "NS", "Old_revid", "PageId", "Rcid", "Revid", "Num/tot",
+                "Comment_revision", "Parentid_revision", "Revid_revision",
+                "Timestamp_revision", "User_revision", "Timestamp", "Title",
+                "Type", "Update",
+                "Origin", "Perceval_version", "Tag",
+                "Timestamp", "Updated_on", "Uuid"])
 
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                index = 0
+                total = len(obj["data"]["revisions"])
+                str_total = str(total)
+
+                while index < total:
+                    str_index = str(index + 1)
+                    relation = str_index + "/" + str_total
+
+                    fileCVS.writerow([obj["backend_name"],
+                                      obj["backend_version"],
+                                      obj["category"],
+                                      obj["data"]["ns"],
+                                      obj["data"]["old_revid"],
+                                      obj["data"]["pageid"],
+                                      obj["data"]["rcid"],
+                                      obj["data"]["revid"],
+                                      relation,
+                                      obj["data"]["revisions"][index]["comment"],
+                                      obj["data"]["revisions"][index]["parentid"],
+                                      obj["data"]["revisions"][index]["revid"],
+                                      obj["data"]["revisions"][index]["timestamp"],
+                                      obj["data"]["revisions"][index]["user"],
+                                      obj["data"]["timestamp"],
+                                      obj["data"]["title"],
+                                      obj["data"]["type"],
+                                      obj["data"]["update"],
+                                      obj["origin"],
+                                      obj["perceval_version"],
+                                      obj["tag"],
+                                      obj["timestamp"],
+                                      obj["updated_on"],
+                                      obj["uuid"]])
+                    index = index + 1
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
         try:
             for build in pages:
                 obj = json.dumps(build, indent=4, sort_keys=True)
@@ -577,6 +629,26 @@ class MediaWikiCommand(BackendCommand):
             if self.backend.cache:
                 self.backend.cache.recover()
             raise RuntimeError(str(e))
+
+
+    def run(self):
+        """Fetch and print the pages and their revisions.
+
+        This method runs the backend to fetch the wiki pages and revisions of a
+        given url. Builds are converted to JSON objects and printed to the
+        defined output.
+        """
+        if self.parsed_args.fetch_cache:
+            pages = self.backend.fetch_from_cache()
+        else:
+            pages = self.backend.fetch(from_date=self.from_date,
+                                       reviews_api=self.reviews_api)
+
+        if self.isCsv:
+            self.CVSformatOutput( pages )
+        else:
+            self.JSONformatOutput( pages )
+
 
     @classmethod
     def create_argument_parser(cls):
