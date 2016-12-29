@@ -22,6 +22,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -369,6 +371,7 @@ class JiraCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -392,22 +395,111 @@ class JiraCommand(BackendCommand):
                             self.verify, self.cert, self.max_issues,
                             tag=self.tag, cache=cache)
 
-    def run(self):
-        """Fetch and print the issues.
 
-        This method runs the backend to fetch the issues (plus all
-        its answers and comments) of a given JIRA site.
-        Issues are converted to JSON objects and printed to the
-        defined output.
-        """
-        if self.parsed_args.fetch_cache:
-            issues = self.backend.fetch_from_cache()
-        else:
-            issues = self.backend.fetch(from_date=self.from_date)
 
+    def CVSformatOutput(self, commits):
         try:
-            for issue in issues:
-                obj = json.dumps(issue, indent=4, sort_keys=True)
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                "Active_author", "16_avatarUrls", "24_avatarUrls",
+                "32_avatarUrls","48_avatarUrls", "DisplayName", "Key", "Name",
+                "Self","TimeZone", "Created", "ID_Histories", "Field", "FieldType",
+                "From", "ToString", "MaxResults", "StartAt", "Total", "ID",
+                "Self", "Transitions"
+                "Origin", "Perceval_version", "Tag",
+                "Timestamp", "Updated_on", "Uuid"])
+
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                index = 0
+                total = len(obj["data"]["changelog"]["histories"])
+                str_total = str(total)
+
+                while index < len(obj["data"]["changelog"]["histories"]):
+                    str_index = str(index + 1)
+                    relation = str_index + "/" + str_total
+
+                    try:
+                        author_active = obj["data"]["changelog"]["histories"][index]["author"]["active"]
+                        author_16 = obj["data"]["changelog"]["histories"][index]["author"]["avatarUrls"]["16x16"]
+                        author_24 = obj["data"]["changelog"]["histories"][index]["author"]["avatarUrls"]["24x24"]
+                        author_32 = obj["data"]["changelog"]["histories"][index]["author"]["avatarUrls"]["32x32"]
+                        author_48 = obj["data"]["changelog"]["histories"][index]["author"]["avatarUrls"]["48x48"]
+                        author_displayName = obj["data"]["changelog"]["histories"][index]["author"]["displayName"]
+                        author_key = obj["data"]["changelog"]["histories"][index]["author"]["key"]
+                        author_name = obj["data"]["changelog"]["histories"][index]["author"]["name"]
+                        author_self = obj["data"]["changelog"]["histories"][index]["author"]["self"]
+                        author_timeZone = obj["data"]["changelog"]["histories"][index]["author"]["timeZone"]
+                    except Exception:
+                        author_active = "-"
+                        author_16 = "-"
+                        author_24 = "-"
+                        author_32 = "-"
+                        author_48 = "-"
+                        author_displayName = "-"
+                        author_key = "-"
+                        author_name = "-"
+                        author_self = "-"
+                        author_timeZone = "-"
+                    try:
+                        toString = obj["data"]["changelog"]["histories"][index]["items"][0]["toString"]
+                    except Exception:
+                        toString = "-"
+
+                    fileCVS.writerow([obj["backend_name"],
+                                      obj["backend_version"],
+                                      obj["category"],
+                                      relation,
+                                      author_active,
+                                      author_16,
+                                      author_24,
+                                      author_32,
+                                      author_48,
+                                      author_displayName,
+                                      author_key,
+                                      author_name,
+                                      author_self,
+                                      author_timeZone,
+                                      obj["data"]["changelog"]["histories"][index]["created"],
+                                      obj["data"]["changelog"]["histories"][index]["id"],
+                                      obj["data"]["changelog"]["histories"][index]["items"][0]["field"],
+                                      obj["data"]["changelog"]["histories"][index]["items"][0]["fieldtype"],
+                                      obj["data"]["changelog"]["histories"][index]["items"][0]["from"],
+                                      toString,
+                                      obj["data"]["changelog"]["maxResults"],
+                                      obj["data"]["changelog"]["startAt"],
+                                      obj["data"]["changelog"]["total"],
+                                      obj["data"]["id"],
+                                      obj["data"]["self"],
+                                      obj["data"]["transitions"],
+                                      obj["origin"],
+                                      obj["perceval_version"],
+                                      obj["tag"],
+                                      obj["timestamp"],
+                                      obj["updated_on"],
+                                      obj["uuid"]])
+                    index = index + 1
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except requests.exceptions.SSLError as e:
+            logging.error('SSL ERROR: Try adding a --cert or use --verify False')
+            raise requests.exceptions.SSLError(e)
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
                 self.outfile.write(obj)
                 self.outfile.write('\n')
         except requests.exceptions.HTTPError as e:
@@ -421,6 +513,24 @@ class JiraCommand(BackendCommand):
             if self.backend.cache:
                 self.backend.cache.recover()
             raise RuntimeError(str(e))
+
+    def run(self):
+        """Fetch and print the issues.
+
+        This method runs the backend to fetch the issues (plus all
+        its answers and comments) of a given JIRA site.
+        Issues are converted to JSON objects and printed to the
+        defined output.
+        """
+        if self.parsed_args.fetch_cache:
+            issues = self.backend.fetch_from_cache()
+        else:
+            issues = self.backend.fetch(from_date=self.from_date)
+
+        if self.isCsv:
+            self.CVSformatOutput( issues )
+        else:
+            self.JSONformatOutput( issues )
 
     @classmethod
     def create_argument_parser(cls):
