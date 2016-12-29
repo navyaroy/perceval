@@ -25,6 +25,8 @@
 
 import datetime
 import json
+import csv
+import sys
 import logging
 import os
 
@@ -124,6 +126,7 @@ class PipermailCommand(BackendCommand):
         self.outfile = self.parsed_args.outfile
         self.tag = self.parsed_args.tag
         self.from_date = str_to_datetime(self.parsed_args.from_date)
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.mboxes_path:
             base_path = os.path.expanduser('~/.perceval/mailinglists/')
@@ -136,6 +139,87 @@ class PipermailCommand(BackendCommand):
         self.backend = Pipermail(self.url, self.mboxes_path,
                                  tag=self.tag, cache=cache)
 
+
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Date", "Delivered_To", "Error-To",
+                              "From", "List-Id", "Message_ID",
+                              "Precedence", "Received", "Return-Path", "Sender",
+                              "Subject", "To", "X-Authentication-Warning",
+                              "X-BeenThere", "X-Loop", "X-Mailman-Version", "unixfrom",
+                               "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                try:
+                    errorTo = obj["data"]["Errors-To"]
+                except Exception:
+                    errorTo = "-"
+                try:
+                    authWarning = obj["data"]["X-Authentication-Warning"]
+                except Exception:
+                    authWarning = "-"
+                try:
+                    sender = obj["data"]["Sender"]
+                except Exception:
+                    sender = "-"
+                try:
+                    loop= obj["data"]["X-Loop"]
+                except Exception:
+                    loop = "-"
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["Date"],
+                                  obj["data"]["Delivered-To"],
+                                  errorTo,
+                                  obj["data"]["From"],
+                                  obj["data"]["List-Id"],
+                                  obj["data"]["Message-ID"],
+                                  obj["data"]["Precedence"],
+                                  obj["data"]["Received"],
+                                  obj["data"]["Return-Path"],
+                                  sender,
+                                  obj["data"]["Subject"],
+                                  obj["data"]["To"],
+                                  authWarning,
+                                  obj["data"]["X-BeenThere"],
+                                  loop,
+                                  obj["data"]["X-Mailman-Version"],
+                                  obj["data"]["unixfrom"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the email messages.
 
@@ -145,15 +229,11 @@ class PipermailCommand(BackendCommand):
         """
         messages = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for message in messages:
-                obj = json.dumps(message, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( messages )
+        else:
+            self.JSONformatOutput( messages )
+
 
     @classmethod
     def create_argument_parser(cls):
