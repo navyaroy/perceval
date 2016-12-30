@@ -21,6 +21,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -296,6 +298,7 @@ class ReMoCommand(BackendCommand):
         self.url = self.parsed_args.url
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -316,6 +319,177 @@ class ReMoCommand(BackendCommand):
 
         self.backend = ReMo(self.url, tag=self.tag, cache=cache)
 
+
+
+
+
+
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Actual_attendance", "Budget_bug_id", "Campaign",
+                              "Categories", "City", "Country", "Description",
+                              "End", "Estimated_attendance", "Event_url", "External_link",
+                              "Lat", "Local_end", "Local_start", "Lon", "Metrics",
+                              "Mozilla_event", "Multiday", "Name",
+                              "First_name", "Fullname", "Last_name", "Avatar_url",
+                              "City_profile", "Country_profile", "Diaspora_url",
+                              "Display_name", "Facebook_url", "Irc_name",
+                              "Is_council", "Is_mentor", "Last_report_date",
+                              "Lat_profile", "Local_name", "Lon", "Mentor",
+                              "Mozillians_profile_url", "personal_blog_feed",
+                              "Profile_url", "Region_profile", "Twitter_account",
+                              "Resource_uri", "Owner_name", "Owner_profile_url",
+                              "Region", "Resource_uri", "Sign_ups", "Start",
+                              "Swag_bug_id", "Timezone", "Venue",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+
+                try:
+                    first_name_od = obj["data"]["owner_data"]["first_name"]
+                    fullname_od = obj["data"]["owner_data"]["fullname"]
+                    last_name_od = obj["data"]["owner_data"]["last_name"]
+                    avatar_url_od = obj["data"]["owner_data"]["profile"]["avatar_url"]
+                    city_od = obj["data"]["owner_data"]["profile"]["city"]
+                    country_od = obj["data"]["owner_data"]["profile"]["country"],
+                    diaspora_url_od = obj["data"]["owner_data"]["profile"]["diaspora_url"]
+                    display_name_od = obj["data"]["owner_data"]["profile"]["display_name"]
+                    facebook_url_od = obj["data"]["owner_data"]["profile"]["facebook_url"]
+                    irc_name_od = obj["data"]["owner_data"]["profile"]["irc_name"]
+                    is_council_od = obj["data"]["owner_data"]["profile"]["is_council"]
+                    is_mentor_od = obj["data"]["owner_data"]["profile"]["is_mentor"]
+                    last_report_date_od = obj["data"]["owner_data"]["profile"]["last_report_date"]
+                    lat_od = obj["data"]["owner_data"]["profile"]["lat"]
+                    local_name_od = obj["data"]["owner_data"]["profile"]["local_name"]
+                    lon_od = obj["data"]["owner_data"]["profile"]["lon"]
+                    mentor_od = obj["data"]["owner_data"]["profile"]["mentor"]
+                    mozillians_od = obj["data"]["owner_data"]["profile"]["mozillians_profile_url"]
+                    personal_blog_feed_od = obj["data"]["owner_data"]["profile"]["personal_blog_feed"]
+                    profile_url_od = obj["data"]["owner_data"]["profile"]["profile_url"]
+                    regions_od = obj["data"]["owner_data"]["profile"]["region"]
+                    twitter_account_od = obj["data"]["owner_data"]["profile"]["twitter_account"]
+                    resource_uri_od = obj["data"]["owner_data"]["resource_uri"]
+                except Exception:
+                    first_name_od = "-"
+                    fullname_od = "-"
+                    last_name_od = "-"
+                    avatar_url_od = "-"
+                    city_od = "-"
+                    country_od = "-"
+                    diaspora_url_od = "-"
+                    display_name_od = "-"
+                    facebook_url_od = "-"
+                    irc_name_od = "-"
+                    is_council_od = "-"
+                    is_mentor_od = "-"
+                    last_report_date_od = "-"
+                    lat_od = "-"
+                    local_name_od = "-"
+                    lon_od = "-"
+                    mentor_od = "-"
+                    mozillians_od = "-"
+                    personal_blog_feed_od = "-"
+                    profile_url_od = "-"
+                    regions_od = "-"
+                    twitter_account_od = "-"
+                    resource_uri_od = "-"
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["actual_attendance"],
+                                  obj["data"]["budget_bug_id"],
+                                  obj["data"]["campaign"],
+                                  obj["data"]["categories"],
+                                  obj["data"]["city"],
+                                  obj["data"]["country"],
+                                  obj["data"]["description"],
+                                  obj["data"]["end"],
+                                  obj["data"]["estimated_attendance"],
+                                  obj["data"]["event_url"],
+                                  obj["data"]["external_link"],
+                                  obj["data"]["lat"],
+                                  obj["data"]["local_end"],
+                                  obj["data"]["local_start"],
+                                  obj["data"]["lon"],
+                                  obj["data"]["metrics"],
+                                  obj["data"]["mozilla_event"],
+                                  obj["data"]["multiday"],
+                                  obj["data"]["name"],
+                                  first_name_od,
+                                  fullname_od,
+                                  last_name_od,
+                                  avatar_url_od,
+                                  city_od,
+                                  country_od,
+                                  diaspora_url_od,
+                                  display_name_od,
+                                  facebook_url_od,
+                                  irc_name_od,
+                                  is_council_od,
+                                  is_mentor_od,
+                                  last_report_date_od,
+                                  lat_od,
+                                  local_name_od,
+                                  lon_od,
+                                  mentor_od,
+                                  mozillians_od,
+                                  personal_blog_feed_od,
+                                  profile_url_od,
+                                  regions_od,
+                                  twitter_account_od,
+                                  resource_uri_od,
+                                  obj["data"]["owner_name"],
+                                  obj["data"]["owner_profile_url"],
+                                  obj["data"]["region"],
+                                  obj["data"]["resource_uri"],
+                                  obj["data"]["sign_ups"],
+                                  obj["data"]["start"],
+                                  obj["data"]["swag_bug_id"],
+                                  obj["data"]["timezone"],
+                                  obj["data"]["venue"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the Events.
 
@@ -328,19 +502,11 @@ class ReMoCommand(BackendCommand):
         else:
             events = self.backend.fetch()
 
-        try:
-            for event in events:
-                obj = json.dumps(event, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( events )
+        else:
+            self.JSONformatOutput( events )
+
 
     @classmethod
     def create_argument_parser(cls):
