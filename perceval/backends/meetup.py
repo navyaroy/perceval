@@ -21,6 +21,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -276,6 +278,7 @@ class MeetupCommand(BackendCommand):
         self.from_date = str_to_datetime(self.parsed_args.from_date)
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -300,6 +303,48 @@ class MeetupCommand(BackendCommand):
                               tag=self.tag,
                               cache=cache)
 
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+
+            fileCVS.writerow(["Backend_name", "Backend_version",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
     def run(self):
         """Fetch and print the events.
 
@@ -312,17 +357,13 @@ class MeetupCommand(BackendCommand):
         else:
             events = self.backend.fetch(from_date=self.from_date)
 
-        try:
-            for event in events:
-                obj = json.dumps(event, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( events )
+        else:
+            self.JSONformatOutput( events )
+
+
+
 
     @classmethod
     def create_argument_parser(cls):
