@@ -320,11 +320,6 @@ class ReMoCommand(BackendCommand):
         self.backend = ReMo(self.url, tag=self.tag, cache=cache)
 
 
-
-
-
-
-
     def CSVformatOutput(self, commits):
         try:
             if self.outfile.name == '<stdout>':
@@ -353,7 +348,6 @@ class ReMoCommand(BackendCommand):
             for commit in commits:
                 string = json.dumps(commit, indent=4, sort_keys=True)
                 obj = json.loads(string)
-
 
                 try:
                     first_name_od = obj["data"]["owner_data"]["first_name"]

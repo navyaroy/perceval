@@ -22,6 +22,8 @@
 
 import functools
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -320,6 +322,7 @@ class ReMoCommand(BackendCommand):
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
         self.url = self.parsed_args.url
+        self.isCsv = self.parsed_args.csv_format
 
 
         if not self.parsed_args.no_cache:
@@ -341,6 +344,85 @@ class ReMoCommand(BackendCommand):
 
         self.backend = ReMo(self.url, tag=self.tag, cache=cache)
 
+
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+            fileCVS.writerow(["Backend_name", "Backend_version", "Category",
+                              "Category", "City", "Country", "Description", "end",
+                              "Estimated_attendance", "External_link", "Hashtag",
+                              "Initiative", "Lat", "Lon", "Name", "Url",
+                              "Display_name", "First_name", "Last_name",
+                              "Planning_pad_url", "Region", "Remo_url", "Start",
+                              "Timezone", "Offset",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["category"],
+                                  obj["data"]["categories"],
+                                  obj["data"]["city"],
+                                  obj["data"]["country"],
+                                  obj["data"]["description"],
+                                  obj["data"]["end"],
+                                  obj["data"]["estimated_attendance"],
+                                  obj["data"]["external_link"],
+                                  obj["data"]["hashtag"],
+                                  obj["data"]["initiative"],
+                                  obj["data"]["lat"],
+                                  obj["data"]["lon"],
+                                  obj["data"]["name"],
+                                  obj["data"]["owner"]["_url"],
+                                  obj["data"]["owner"]["display_name"],
+                                  obj["data"]["owner"]["first_name"],
+                                  obj["data"]["owner"]["last_name"],
+                                  obj["data"]["planning_pad_url"],
+                                  obj["data"]["region"],
+                                  obj["data"]["remo_url"],
+                                  obj["data"]["start"],
+                                  obj["data"]["timezone"],
+                                  obj["offset"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
     def run(self):
         """Fetch and print the items.
 
@@ -353,19 +435,11 @@ class ReMoCommand(BackendCommand):
         else:
             items = self.backend.fetch(offset=self.offset, category=self.category)
 
-        try:
-            for item in items:
-                obj = json.dumps(item, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( items )
+        else:
+            self.JSONformatOutput( items )
+
 
     @classmethod
     def create_argument_parser(cls):
