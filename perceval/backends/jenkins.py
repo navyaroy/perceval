@@ -21,6 +21,8 @@
 #
 
 import json
+import csv
+import sys
 import logging
 import os.path
 
@@ -209,7 +211,7 @@ class JenkinsCommand(BackendCommand):
         self.tag = self.parsed_args.tag
         self.outfile = self.parsed_args.outfile
         self.blacklist_jobs = self.parsed_args.blacklist_jobs
-
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -231,6 +233,54 @@ class JenkinsCommand(BackendCommand):
         self.backend = Jenkins(self.url, tag=self.tag, cache=cache,
                                blacklist_jobs=self.blacklist_jobs)
 
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+
+            fileCVS.writerow(["Backend_name", "Backend_version",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
     def run(self):
         """Fetch and print the Builds.
 
@@ -243,19 +293,10 @@ class JenkinsCommand(BackendCommand):
         else:
             builds = self.backend.fetch()
 
-        try:
-            for build in builds:
-                obj = json.dumps(build, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except requests.exceptions.HTTPError as e:
-            raise requests.exceptions.HTTPError(str(e.response.json()))
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            if self.backend.cache:
-                self.backend.cache.recover()
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( builds )
+        else:
+            self.JSONformatOutput( builds )
 
     @classmethod
     def create_argument_parser(cls):
