@@ -25,6 +25,8 @@
 
 import functools
 import json
+import csv
+import sys
 import logging
 import os
 import posixpath
@@ -185,6 +187,7 @@ class GmaneCommand(BackendCommand):
         self.outfile = self.parsed_args.outfile
         self.tag = self.parsed_args.tag
         self.offset = self.parsed_args.offset
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.mboxes_path:
             base_path = os.path.expanduser('~/.perceval/mailinglists/')
@@ -197,6 +200,44 @@ class GmaneCommand(BackendCommand):
         self.backend = Gmane(self.mailing_list, self.mboxes_path,
                              tag=self.tag, cache=cache)
 
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+
+            fileCVS.writerow(["Backend_name", "Backend_version",
+                              "Origin", "Perceval_version", "Tag",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["tag"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(str(e))
+
+    def JSONformatOutput(self, commits):
+        try:
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            raise RuntimeError(str(e))
+
     def run(self):
         """Fetch and print the email messages.
 
@@ -206,15 +247,10 @@ class GmaneCommand(BackendCommand):
         """
         messages = self.backend.fetch(offset=self.offset)
 
-        try:
-            for message in messages:
-                obj = json.dumps(message, indent=4, sort_keys=True)
-                self.outfile.write(obj)
-                self.outfile.write('\n')
-        except IOError as e:
-            raise RuntimeError(str(e))
-        except Exception as e:
-            raise RuntimeError(str(e))
+        if self.isCsv:
+            self.CSVformatOutput( messages )
+        else:
+            self.JSONformatOutput( messages )
 
     @classmethod
     def create_argument_parser(cls):

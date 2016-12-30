@@ -555,13 +555,15 @@ class GitHubCommand(BackendCommand):
                                   obj["timestamp"],
                                   obj["updated_on"],
                                   obj["uuid"]])
-
-        except OSError as e:
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(str(e.response.json()))
+        except IOError as e:
             raise RuntimeError(str(e))
         except Exception as e:
             if self.backend.cache:
                 self.backend.cache.recover()
             raise RuntimeError(str(e))
+
 
     def JSONformatOutput(self, commits):
         try:
