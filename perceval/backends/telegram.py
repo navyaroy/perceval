@@ -22,6 +22,8 @@
 
 import functools
 import json
+import csv
+import sys
 import logging
 import os
 
@@ -283,6 +285,7 @@ class TelegramCommand(BackendCommand):
         self.tag = self.parsed_args.tag
         self.offset = self.parsed_args.offset
         self.chats = self.parsed_args.chats
+        self.isCsv = self.parsed_args.csv_format
 
         if not self.parsed_args.no_cache:
             if not self.parsed_args.cache_path:
@@ -305,6 +308,72 @@ class TelegramCommand(BackendCommand):
                                 self.backend_token,
                                 tag=self.tag,
                                 cache=cache)
+
+
+    def CSVformatOutput(self, commits):
+        try:
+            if self.outfile.name == '<stdout>':
+                fileCVS = csv.writer( sys.stdout)
+            else:
+                fileCVS = csv.writer(open(self.outfile.name, "w+"))
+
+            fileCVS.writerow(["Backend_name", "Backend_version",
+                              "Origin", "Perceval_version",
+                              "Timestamp", "Updated_on", "Uuid"])
+            for commit in commits:
+                string = json.dumps(commit, indent=4, sort_keys=True)
+                obj = json.loads(string)
+
+                fileCVS.writerow([obj["backend_name"],
+                                  obj["backend_version"],
+                                  obj["origin"],
+                                  obj["perceval_version"],
+                                  obj["timestamp"],
+                                  obj["updated_on"],
+                                  obj["uuid"]])
+
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def JSONformatOutput(self, commits):
+        try:
+            total = 0
+            for commit in commits:
+                obj = json.dumps(commit, indent=4, sort_keys=True)
+                self.outfile.write(obj)
+                self.outfile.write('\n')
+                total += 1
+            logger.info("Total reviews: %i", total)
+        except IOError as e:
+            raise RuntimeError(str(e))
+        except Exception as e:
+            if self.backend.cache:
+                self.backend.cache.recover()
+            raise RuntimeError(str(e))
+
+
+    def run(self):
+        """Fetch and print the reviews.
+
+        This method runs the backend to fetch the reviews from the given
+        repository. Reviews are converted to JSON objects and printed to the
+        defined output.
+        """
+        if self.parsed_args.fetch_cache:
+            bugs = self.backend.fetch_from_cache()
+        else:
+            bugs = self.backend.fetch(from_date=self.from_date)
+
+        if self.isCsv:
+            self.CSVformatOutput( bugs )
+        else:
+            self.JSONformatOutput( bugs )
+
 
     def run(self):
         """Fetch and print the messages.
